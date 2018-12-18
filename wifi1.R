@@ -552,9 +552,12 @@ fitControl <- trainControl(method = "repeatedcv", number = 3, repeats = 3, allow
 
 sample_building <- createDataPartition(training_clean$BUILDINGID, p = 0.05, list = FALSE)
 sample_floor <- createDataPartition(training_clean$BUILDFLOOR, p = 0.05, list = FALSE)
-
+sample_longitude <- createDataPartition(training_clean$LONGITUDE, p = 0.05, list = FALSE)
+sample_latitude <- createDataPartition(training_clean$LATITUDE, p = 0.05, list = FALSE)
 
 training_floor <- training_clean[sample_floor,]
+training_longitude <- training_clean[sample_longitude,]
+training_latitude <- training_clean[sample_latitude,]
 
 ### Decision tree before starting to model 
 BuildTree <- rpart(BUILDINGID~., data=training_highsd5, method = "class", control = list(maxdepth = 15))
@@ -583,7 +586,7 @@ train_KNN1_building <- train(BUILDINGID~.-LONGITUDE -LATITUDE -SPACEID -FLOOR -U
                              trControl = fitControl)
 
 # with whole dataset
-train_KNN1.1_building <- train(y = training_clean$BUILDINGID, x = training_cle
+train_KNN1.1_building <- train(y = training_clean$BUILDINGID, x = training_clean
   BUILDINGID~.-LONGITUDE -LATITUDE -SPACEID 
                                -FLOOR -USERID -RELATIVEPOSITION -PHONEID 
                                -TIMESTAMP, method = "knn",data = training_clean,
@@ -644,10 +647,10 @@ train_RF1_floor <- randomForest(y = training_clean$BUILDFLOOR, x = training_clea
 
 Pred_RF1_20_floor <- predict(train_RF1_floor, validation_clean)
 confusionMatrix(Pred_RF1_20_floor, validation_clean$BUILDFLOOR)
-save(train_RF1_50_floor, file = "RF1_floor.rda")
+save(train_RF1_floor, file = "RF1_floor.rda")
 
 ## 50 trees: acc: 0.89 kappa: 0.87
-train_RF1_50_floor <- randomForest(y = training_clean$BUILDFLOOR, x = training_clean[1:312], 
+train_RF1_50_floor <- randomForest(y = training_clean$BUILDFLOOR, x = training_clean[,1:312], 
                                 ntrees=50, trControl = fitControl)
 
 Pred_RF1_50_floor <- predict(train_RF1_50_floor, validation_clean)
@@ -655,7 +658,51 @@ confusionMatrix(Pred_RF1_50_floor, validation_clean$BUILDFLOOR)
 
 
 
-#### Models to predict LONGITUDE and LATITUDE
-###
+#### Models to predict LONGITUDE
+### Sampling
+### KNN    RMSE: 21.5  Rsq: 0.97 MAE: 9.78 (training)
+###        RMSE: 26.8  Rsq: 0.95 MAE: 12.54 (validated)
+train_KNN1_long_beta <- train(y = training_longitude$LONGITUDE, x = training_longitude[,1:312],
+                              method = "knn", preProcess = c("center","scale"))
+Pred_KNN_long_beta <- predict(train_KNN1_long_beta, validation_clean)
+postResample(Pred_KNN_long_beta, validation_clean$LONGITUDE)
 
-train_KNN1_longlat_beta <- train()
+### SVM Linear   RMSE: 39.99 Rsq: 0.90  MAE: 27.47 (training)
+###              RMSE: NA    Rsq: NA    MAE: Na (validation)
+train_SVML_long_beta <- train(y = training_longitude$LONGITUDE, x = training_longitude[,1:312],
+                              method = "svmLinear", preProcess = c("center","scale"))
+Pred_SVML_long_beta <- predict(train_SVML_long_beta, validation_clean)
+postResample(Pred_SVML_long_beta, validation_clean$LONGITUDE)
+
+#### Chosen model: KNN
+## Train performance:       RMSE: 8.39 Rsq: 0.99 MAE: 2.77
+## Validated performance:   RMSE: 20.18 Rsq: 0.97 MAE: 7.94
+train_KNN1_longitude <- train(y = training_clean$LONGITUDE, x = training_clean[,1:312],
+                              method = "knn", preProcess = c("center","scale"),
+                              trControl = fitControl)
+Pred_KNN_longitude <-  predict(train_KNN1_longitude, validation_clean)
+postResample(Pred_KNN_longitude, validation_clean$LONGITUDE)
+save(train_KNN1_longitude, file = "KNNLongitude.rda")
+
+#### Models to predict LATITUDE
+### Sampling
+### KNN   RMSE: 19.96 Rsq: 0.97 MAE: 9.4 (training)
+###       RMSE: 17.65 Rsq: 0.937 MAE: 9.74 (validation)
+train_KNN1_lat_beta <- train(y = training_latitude$LATITUDE, x = training_latitude[,1:312],
+                              method = "knn", preProcess = c("center","scale"))
+Pred_KNN_lat_beta <- predict(train_KNN1_lat_beta, validation_clean)
+postResample(Pred_KNN_lat_beta, validation_clean$LATITUDE)
+
+### SVM Linear   RMSE: 24.71 Rsq: 0.87 MAE: 17.27 (train)
+train_SVML_lat_beta <- train(y = training_latitude$LATITUDE, x = training_latitude[,1:312],
+                              method = "svmLinear")
+Pred_SVML_lat_beta <- predict(train_SVML_lat_beta, validation_clean)
+postResample(Pred_SVML_lat_beta, validation_clean$LATITUDE)
+
+### Chosen model: KNN
+train_KNN1_latitude <- train(y = training_clean$LATITUDE, x = training_clean[,1:312],
+                             method = "knn", preProcess = c("center","scale"),
+                             trControl = fitControl)
+Pred_KNN_latitude <- predict(train_KNN1_latitude, validation_clean)
+postResample(Pred_KNN_latitude, validation_clean$LATITUDE)
+save(train_KNN1_latitude, file = "KNNLatitude.rda")

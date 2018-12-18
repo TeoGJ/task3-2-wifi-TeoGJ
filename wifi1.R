@@ -586,13 +586,12 @@ train_KNN1_building <- train(BUILDINGID~.-LONGITUDE -LATITUDE -SPACEID -FLOOR -U
                              trControl = fitControl)
 
 # with whole dataset
-train_KNN1.1_building <- train(y = training_clean$BUILDINGID, x = training_clean
-  BUILDINGID~.-LONGITUDE -LATITUDE -SPACEID 
-                               -FLOOR -USERID -RELATIVEPOSITION -PHONEID 
-                               -TIMESTAMP, method = "knn",data = training_clean,
-                             trControl = fitControl) ## acc: 0.99 kappa: 0.99
-                                                     ## so move on to floor models
 
+train_KNN1.1_building <- train(y = training_clean$BUILDINGID, x = training_clean[1:312],
+                               method = "knn", trControl = fitControl)
+Pred_KNN1_building <- predict(train_KNN1.1_building, validation_clean)
+confusionMatrix(Pred_KNN1_building, validation_clean$BUILDINGID)
+save(train_KNN1.1_building, file = "KNNBuilding.rda")
 
 ### Models to predict FLOOR ID
 system.time(expr = TRUE)
@@ -700,6 +699,8 @@ Pred_SVML_lat_beta <- predict(train_SVML_lat_beta, validation_clean)
 postResample(Pred_SVML_lat_beta, validation_clean$LATITUDE)
 
 ### Chosen model: KNN
+### RMSE: 5.91 RSq: 0.99 MAE: 2.29 (training)
+### RMSE: 15.79 RSq: 0.95 MAE: 7.57 (validation)
 train_KNN1_latitude <- train(y = training_clean$LATITUDE, x = training_clean[,1:312],
                              method = "knn", preProcess = c("center","scale"),
                              trControl = fitControl)

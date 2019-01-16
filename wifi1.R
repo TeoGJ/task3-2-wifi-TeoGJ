@@ -6,13 +6,12 @@
 
 
 
-#### 0. Environment
-
-### 0.1 Working directory
+#### 0. Environment ----
+#### 0.1 Working directory ----
 
 setwd("C:/Users/User/Desktop/DataAnalytics/4.2. Wifi Locationing")
 
-### 0.2. Packages required
+#### 0.2. Packages required ----
 
 install.packages(mvabund)
 library(caret)
@@ -25,28 +24,29 @@ library(class)
 library(e1071)
 library(doParallel)
 
+
 options(scipen=999)       ## to avoid scientific numeration
 
 var.p = function(x){var(x)*(length(x)-1)/length(x)}
 
 
-#### 1. Data exploration
+#### 1. Data exploration ----
 
-### 1.1. Downloading data
+#### 1.1. Downloading data ----
 
-## 1.1.1. Downloading training data
+#### 1.1.1. Downloading training data ----
 training <- read_csv("trainingData.csv")
 training <- as.data.frame(training)
 training[1:529] <- lapply(training[1:529], as.numeric)
 training[523:528] <- lapply(training[523:528], as.factor)
 
-## 1.1.2. Downloading validation data
+#### 1.1.2. Downloading validation data ----
 validation <- read_csv("validationData.csv")
 validation <- as.data.frame(validation)
 validation[1:529] <- lapply(validation[1:529], as.numeric)
 validation[523:528] <- lapply(validation[523:528], as.factor)
 
-### 1.2. Data observation
+#### 1.2. Data observation ----
 head(training)
 str(training)
 summary(training)
@@ -67,24 +67,24 @@ unique(training$SPACEID)
 unique(training$RELATIVEPOSITION)
 
 
-## 1.2.1. Basic statistics
+#### 1.2.1. Basic statistics ----
 summary(training_clean$FLOOR)
 summary(training_clean$BUILDINGID)
 summary(training_clean$SPACEID)
 summary(training_clean$USERID)
 
 
-## 1.2.2. Zero variance / Near zero variance
+#### 1.2.2. Zero variance / Near zero variance ----
 
 nearZeroVar(training_clean, freqCut = 95/5, uniqueCut = 10, saveMetrics = FALSE,
             names = TRUE)
 
-## Data cleaning
+#### Data cleaning ----
 
-# how many WAP's with zero variance? Thus, how many useless WAP's?
+#### how many WAP's with zero variance? Thus, how many useless WAP's? ----
 names(which(apply(training_clean,2,var) == 0))
 
-# remove every useless WAP
+#### remove every useless WAP ----
 which(apply(training_clean,2,max) == -105)
 which(apply(training_clean,2,var) == 0 )
 training_clean <- training_clean[,-which(apply(training_clean,2,var) == 0)]
@@ -98,7 +98,7 @@ common_col <- intersect(names(training_clean[,1:465]), names(validation_clean[,1
 training_clean <- cbind(training_clean[,common_col],training_clean[466:475])
 validation_clean <- cbind(validation_clean[,common_col], validation_clean[368:377])
 
-# merge building and floor
+#### paste building and floor ----
 training$BUILDFLOOR <- paste0(training$BUILDINGID, training$FLOOR)
 training_clean$BUILDFLOOR <- paste0(training_clean$BUILDINGID, training_clean$FLOOR)
 validation$BUILDFLOOR <- paste0(validation$BUILDINGID, validation$FLOOR)
@@ -108,11 +108,28 @@ validation$BUILDFLOOR <- as.factor(validation$BUILDFLOOR)
 training_clean$BUILDFLOOR <- as.factor(validation_clean$BUILDFLOOR)
 validation_clean$BUILDFLOOR <- as.factor(validation_clean$BUILDFLOOR)
 
-# remove user 6 observations (half of it are wrong)
+#### remove user 6 observations (almost half of them are wrong) ----
 training_clean <- training_clean %>% filter(!(USERID == 6))
 validation_clean <- validation_clean %>% filter(1(USERID == 6))
 
-# how many WAP's with low standard deviation?
+#### remove all wrong observations ----
+training_clean <- training_clean[which(apply(building2_clean[,c(1:102)],1, function(x) max(x) <= -30)),]
+which(apply(training_clean[,c(1:102)],1, function(x) max(x) <= -30))
+
+wrong_obs <- training_clean[which(apply(training_clean[,c(1:312)], 1, function(x) max(x) > -30)),]
+
+plot(wrong_obs$LONGITUDE, wrong_obs$LATITUDE,
+     xlab = "LONGITUDE",
+     ylab = "LATITUDE",
+     main = "Wrong Observations")
+
+ggplot(wrong_obs, aes(LONGITUDE, LATITUDE))
+       + geom_point()
+
+
+ggplot(wrong_obs, aes(USERID)) + geom_bar()
+
+#### how many WAP's with low standard deviation? ----
 training_highsd1 <- cbind(training_clean[,which(apply(training_clean[,1:464],2,sd) > 1)], training_clean[,466:475])
 
 training_highsd2 <- cbind(training_clean[,which(apply(training_clean[,1:464],2,sd) > 2)], training_clean[,466:475])
@@ -135,8 +152,64 @@ valid_b1_highsd5 <- validation_highsd5 %>% filter(BUILDINGID == 1)
 valid_b2_highsd5 <- validation_highsd5 %>% filter(BUILDINGID == 2)
 
 
-## 1.2.3. Subsetting data
-## 1.2.3.1. By user
+#### 1.2.3. Subsetting data ----
+#### 1.2.3.1. By user ----
+
+users <- cbind.data.frame(
+            c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18),
+            c((sum((training$USERID) == 1)),
+           (sum((training$USERID) == 2)),
+           (sum((training$USERID) == 3)),
+           (sum((training$USERID) == 4)),
+           (sum((training$USERID) == 5)),
+           (sum((training$USERID) == 6)),
+           (sum((training$USERID) == 7)),
+           (sum((training$USERID) == 8)),
+           (sum((training$USERID) == 9)),
+           (sum((training$USERID) == 10)),
+           (sum((training$USERID) == 11)),
+           (sum((training$USERID) == 12)),
+           (sum((training$USERID) == 13)),
+           (sum((training$USERID) == 14)),
+           (sum((training$USERID) == 15)),
+           (sum((training$USERID) == 16)),
+           (sum((training$USERID) == 17)),
+           (sum((training$USERID) == 18))))
+
+names(users)[1] <- "UserID"
+names(users)[2] <- "Observations"
+
+ggplot(data = users, aes(x=UserID, y=Observations)) +
+  geom_bar(stat = "identity")
+
+
+phone <- cbind.data.frame(
+          c(1,3,6,7,8,10,11,13,14,16,17,18,19,22,23,24),
+          c((sum((training$PHONEID) == 1)),
+            (sum((training$PHONEID) == 3)),
+            (sum((training$PHONEID) == 6)),
+            (sum((training$PHONEID) == 7)),
+            (sum((training$PHONEID) == 8)),
+            (sum((training$PHONEID) == 10)),
+            (sum((training$PHONEID) == 11)),
+            (sum((training$PHONEID) == 13)),
+            (sum((training$PHONEID) == 14)),
+            (sum((training$PHONEID) == 16)),
+            (sum((training$PHONEID) == 17)),
+            (sum((training$PHONEID) == 18)),
+            (sum((training$PHONEID) == 19)),
+            (sum((training$PHONEID) == 22)),
+            (sum((training$PHONEID) == 23)),
+            (sum((training$PHONEID) == 24)))
+)
+
+names(phone)[1] <- "PhoneID"
+names(phone)[2] <- "Observations"
+
+
+ggplot(data = phone, aes(x=PhoneID, y=Observations)) +
+  geom_bar(stat = "identity")
+
 user01 <- training_clean %>% filter(USERID == 1)
 user02 <- training_clean %>% filter(USERID == 2)
 user03 <- training_clean %>% filter(USERID == 3)
@@ -195,7 +268,7 @@ summary(user17$PHONEID)
 summary(user18$PHONEID)
 
 
-## 1.2.3.2. By phone ID
+#### 1.2.3.2. By phone ID ----
 phone01 <- training_clean %>% filter(PHONEID == 1)
 phone03 <- training_clean %>% filter(PHONEID == 3)
 phone06 <- training_clean %>% filter(PHONEID == 6)
@@ -217,12 +290,12 @@ phone23 <- training_clean %>% filter(PHONEID == 23)
 phone24 <- training_clean %>% filter(PHONEID == 24)
 
 
-## 1.2.3.3. By building
-building0 <- training_clean %>% filter(BUILDINGID == 0)
-building1 <- training_clean %>% filter(BUILDINGID == 1)
-building2 <- training_clean %>% filter(BUILDINGID == 2)
+#### 1.2.3.3. By building ----
+building0 <- training %>% filter(BUILDINGID == 0)
+building1 <- training %>% filter(BUILDINGID == 1)
+building2 <- training %>% filter(BUILDINGID == 2)
 
-## 1.2.3.3.1. By building and floor
+#### 1.2.3.3.1. By building and floor ----
 build0_floor0 <- building0 %>% filter(FLOOR == 0)
 build0_floor1 <- building0 %>% filter(FLOOR == 1)
 build0_floor2 <- building0 %>% filter(FLOOR == 2)
@@ -236,6 +309,39 @@ build2_floor1 <- building2 %>% filter(FLOOR == 1)
 build2_floor2 <- building2 %>% filter(FLOOR == 2)
 build2_floor3 <- building2 %>% filter(FLOOR == 3)
 build2_floor4 <- building2 %>% filter(FLOOR == 4)
+
+validation_building0 <- validation_clean %>% filter(BUILDINGID == 0)
+validation_building1 <- validation_clean %>% filter(BUILDINGID == 1)
+validation_building2 <- validation_clean %>% filter(BUILDINGID == 2)
+
+val_b0_f0 <- validation_building0 %>% filter(FLOOR == 0)
+val_b0_f1 <- validation_building0 %>% filter(FLOOR == 1)
+val_b0_f2 <- validation_building0 %>% filter(FLOOR == 2)
+val_b0_f3 <- validation_building0 %>% filter(FLOOR == 3)
+val_b1_f0 <- validation_building1 %>% filter(FLOOR == 0)
+val_b1_f1 <- validation_building1 %>% filter(FLOOR == 1)
+val_b1_f2 <- validation_building1 %>% filter(FLOOR == 2)
+val_b1_f3 <- validation_building1 %>% filter(FLOOR == 3)
+val_b2_f0 <- validation_building2 %>% filter(FLOOR == 0)
+val_b2_f1 <- validation_building2 %>% filter(FLOOR == 1)
+val_b2_f2 <- validation_building2 %>% filter(FLOOR == 2)
+val_b2_f3 <- validation_building2 %>% filter(FLOOR == 3)
+val_b2_f4 <- validation_building2 %>% filter(FLOOR == 4)
+
+
+plot(build0_floor0$LONGITUDE, build0_floor0$LATITUDE)
+plot(build0_floor1$LONGITUDE, build0_floor1$LATITUDE)
+plot(build0_floor2$LONGITUDE, build0_floor2$LATITUDE)
+plot(build0_floor3$LONGITUDE, build0_floor3$LATITUDE)
+plot(build1_floor0$LONGITUDE, build1_floor0$LATITUDE)
+plot(build1_floor1$LONGITUDE, build1_floor1$LATITUDE)
+plot(build1_floor2$LONGITUDE, build1_floor2$LATITUDE)
+plot(build1_floor3$LONGITUDE, build1_floor3$LATITUDE)
+plot(build2_floor0$LONGITUDE, build2_floor0$LATITUDE)
+plot(build2_floor1$LONGITUDE, build2_floor1$LATITUDE)
+plot(build2_floor2$LONGITUDE, build2_floor2$LATITUDE)
+plot(build2_floor3$LONGITUDE, build2_floor3$LATITUDE)
+plot(build2_floor4$LONGITUDE, build2_floor4$LATITUDE)
 
 apply(building0[,c(1:465)],2,function(x) which(mean(x) == -105))
 apply(building1[,c(1:465)],2,function(x) which(mean(x) == -105))
@@ -266,7 +372,7 @@ training_clean[apply(training_clean[,c(1:520)], 1, function(x) length(which(x > 
 weird_obs <- training_clean[apply(training_clean[,c(1:520)], 1, function(x) length(which(x > -30 & x <= 0)))]
 summary(weird_obs)
 
-## 1.3.2. Basic plots
+#### 1.3.2. Basic plots ----
 
 plot(training_clean$LONGITUDE, training_clean$LATITUDE)
 
@@ -320,7 +426,7 @@ plot(user18$LONGITUDE, user18$LATITUDE)
 
 
 
-#### 1.4. WAP's localization
+#### 1.4. WAP's localization ----
 ## those on the training DF with means equal to -105 are useless
 sum(apply(training_clean[,c(1:465)],2, function(x) length(which(mean(x) == -105))))
 
@@ -560,7 +666,7 @@ unique(b2_f4_wrong$PHONEID)
 
 
 
-#### Training models
+#### Training models ----
 
 parallel::detectCores()
 cl<- makeCluster(2)
@@ -572,29 +678,50 @@ sample_floor <- createDataPartition(training_clean$BUILDFLOOR, p = 0.05, list = 
 sample_longitude <- createDataPartition(training_clean$LONGITUDE, p = 0.05, list = FALSE)
 sample_latitude <- createDataPartition(training_clean$LATITUDE, p = 0.05, list = FALSE)
 
+training_building <- training_clean[sample_building,]
 training_floor <- training_clean[sample_floor,]
 training_longitude <- training_clean[sample_longitude,]
 training_latitude <- training_clean[sample_latitude,]
 
-### Decision tree before starting to model 
+#### Decision tree before starting to model ----
 BuildTree <- rpart(BUILDINGID~., data=training_highsd5, method = "class", control = list(maxdepth = 15))
 summary(BuildTree)
 rpart.plot(BuildTree, cex = .5)
 
-### Models to predict BUILDING ID
+#### Models to predict BUILDING ID ----
 
 ## Random Forest
 system.time()
+
+train_RF1_building_beta <- randomForest(y = training_building$BUILDINGID,
+                                        x = training_building[,1:312],
+                                        ntrees = 20)
+Pred_RF1_building_beta <- predict(train_RF1_building_beta, training_building)
+
 train_RF1_building <- randomForest(BUILDINGID~.-LONGITUDE -LATITUDE -SPACEID 
                                    -FLOOR -USERID 
                                    -RELATIVEPOSITION -PHONEID -TIMESTAMP, 
                                    data = training_highsd5, ntrees=5, 
                                    trControl = fitControl)
-train_RF1.1_building <- randomForest(BUILDINGID~.-LONGITUDE -LATITUDE -SPACEID 
-                                     -FLOOR -USERID -RELATIVEPOSITION -PHONEID 
-                                     -TIMESTAMP, data = training_clean, 
-                                     ntrees=5, trControl = fitControl)
+train_RF1.1_building <- randomForest(y = training_clean$BUILDINGID,
+                                     x = training_clean[,1:312],
+                                     ntrees = 20
+)
+Pred_RF1.1_building <- predict(train_RF1.1_building, validation_clean)
+cm_RF1.1_building <- confusionMatrix(Pred_RF1.1_building, validation_clean$BUILDINGID)
 
+plot(cm_RF1.1_building$table)
+
+
+train_RF2_building <- randomForest(y = training_highsd5$BUILDINGID,
+                                   x = training_highsd5[,1:136],
+                                   ntrees = 20
+  
+)
+Pred_RF2_building <- predict(train_RF2_building, validation_clean)
+cm_RF2_building <- confusionMatrix(Pred_RF2_building, validation_clean$BUILDINGID)
+
+plot(cm_RF2_building$table)
 
 ## KNN
 
@@ -613,7 +740,14 @@ save(train_KNN1.1_building, file = "KNNBuilding.rda")
 plot(Pred_KNN1_building)
 plot(validation_clean$BUILDINGID)
 
-### Models to predict FLOOR ID
+train_KNNsd5_building <- train(y = training_highsd5$BUILDINGID, x = training_highsd5[1:136],
+                               method = "knn", trControl = fitControl)
+Pred_KNNsd5_building <- predict(train_KNNsd5_building, validation_highsd5)
+confusionMatrix(Pred_KNNsd5_building, validation_highsd5$BUILDINGID)
+save(train_KNNsd5_building, file = "KNNBuilding2.rda")
+
+
+#### Models to predict FLOOR ID ----
 system.time(expr = TRUE)
 
 ## Model comparison by predicting samples
@@ -659,6 +793,8 @@ Pred_SVML_floor <- predict(train_SVML1_1_floor, newdata = validation_clean)
 Pred_SVML_floor
 confusionMatrix(Pred_SVML_floor, validation_clean$BUILDFLOOR)
 
+
+
 #### Chosen model 2: Random Forest
 ## 20 trees: acc:0.91 kappa: 0.90
 train_RF1_floor <- randomForest(y = training_clean$BUILDFLOOR, x = training_clean[1:312], 
@@ -667,6 +803,9 @@ train_RF1_floor <- randomForest(y = training_clean$BUILDFLOOR, x = training_clea
 Pred_RF1_20_floor <- predict(train_RF1_floor, validation_clean)
 confusionMatrix(Pred_RF1_20_floor, validation_clean$BUILDFLOOR)
 save(train_RF1_floor, file = "RF1_floor.rda")
+
+validation_clean_floor <- validation_clean
+validation_clean_floor$PredictedFLOOR <- cbind(validation_clean_floor, Pred_RF1_20_floor)
 
 par(mfrow=c(1,2))
 plot(validation_clean$BUILDFLOOR,
@@ -677,6 +816,7 @@ plot(Pred_RF1_20_floor,
      main="Predicted observations")
 
 par(mfrow=c(1,1))
+
 ## 50 trees: acc: 0.89 kappa: 0.87
 train_RF1_50_floor <- randomForest(y = training_clean$BUILDFLOOR, x = training_clean[,1:312], 
                                 ntrees=50, trControl = fitControl)
@@ -684,7 +824,17 @@ train_RF1_50_floor <- randomForest(y = training_clean$BUILDFLOOR, x = training_c
 Pred_RF1_50_floor <- predict(train_RF1_50_floor, validation_clean)
 confusionMatrix(Pred_RF1_50_floor, validation_clean$BUILDFLOOR)
 
-#### Models to predict LONGITUDE
+
+## Chosen model 3: KNN
+
+train_KNN1_floor <- train(y = training_clean$BUILDFLOOR,
+                          x = training_clean[,1:312]
+                          , method = "knn",
+                          trControl = fitControl)
+Pred_KNN1_floor <- predict(train_KNN1_floor, validation_clean)
+confusionMatrix(Pred_KNN1_floor, validation_clean$BUILDFLOOR)
+
+#### Models to predict LONGITUDE ----
 ### Sampling
 ### KNN    RMSE: 21.5  Rsq: 0.97 MAE: 9.78 (training)
 ###        RMSE: 26.8  Rsq: 0.95 MAE: 12.54 (validated)
@@ -711,7 +861,7 @@ postResample(Pred_KNN_longitude, validation_clean$LONGITUDE)
 save(train_KNN1_longitude, file = "KNNLongitude.rda")
 
 
-#### Models to predict LATITUDE
+#### Models to predict LATITUDE ----
 ### Sampling
 ### KNN   RMSE: 19.96 Rsq: 0.97 MAE: 9.4 (training)
 ###       RMSE: 17.65 Rsq: 0.937 MAE: 9.74 (validation)
@@ -747,7 +897,7 @@ plot(validation_clean$LONGITUDE, validation_clean$LATITUDE,
 
 
 
-#### Filtering Training dataset by BUILDING
+#### Filtering Training dataset by BUILDING ----
 
 building0_clean <- training_clean %>% filter(BUILDINGID == 0)
 building1_clean <- training_clean %>% filter(BUILDINGID == 1) 
@@ -777,11 +927,6 @@ validation_building1 <- cbind(validation_building1[,common_b1clean], validation_
 building2_clean <- cbind(building2_clean[,common_b2clean],building2_clean[122:131])
 validation_building2 <- cbind(validation_building2[,common_b2clean], validation_building2[111:120])
 
-#### do it for each building
-common_col <- intersect(names(training_clean[,1:465]), names(validation_clean[,1:367]))
-training_clean <- cbind(training_clean[,common_col],training_clean[466:475])
-validation_clean <- cbind(validation_clean[,common_col], validation_clean[368:377])
-
 
 levels(building0_clean$BUILDFLOOR)
 building0_clean$BUILDFLOOR <- factor(building0_clean$BUILDFLOOR)
@@ -805,13 +950,15 @@ levels(validation_building2$BUILDFLOOR)
 validation_building2$BUILDFLOOR <- factor(validation_building2$BUILDFLOOR)
 levels(validation_building2$BUILDFLOOR)
 
+
+#### Iterating models to predict FLOOR ----
 train_RF_bfloor0 <- randomForest(y=building0_clean$BUILDFLOOR, x = building0_clean[1:312],
                                  ntrees=20, trControl = fitControl)
 Pred_RF_bfloor0 <- predict(train_RF_bfloor0, validation_building0)
 confusionMatrix(Pred_RF_bfloor0, validation_building0$BUILDFLOOR)
 
 train_RF_bfloor1 <- randomForest(y=building1_clean$BUILDFLOOR, x = building1_clean[1:312],
-                                 ntrees=20, trControl = fitControl)
+                                 ntrees=20, trControl = fitControl, mtry = TRUE)
 Pred_RF_bfloor1 <- predict(train_RF_bfloor1, validation_building1)
 confusionMatrix(Pred_RF_bfloor1, validation_building1$BUILDFLOOR)
 plot(Pred_RF_bfloor1)
@@ -844,6 +991,7 @@ train_RFwhole_floor <- randomForest(y = training$BUILDFLOOR, x = training[1:520]
 Pred_RFwhole_floor <- predict(train_RFwhole_floor, validation)
 confusionMatrix(Pred_RFwhole_floor, validation$BUILDFLOOR)
 
+#### Iterating models to predict LONGITUDE / LATITUDE ----
 ### LONGITUDE / LATITUDE with only high SD WAP's
 train_KNNsd5_long <- train(y = training_highsd5$LONGITUDE, x = training_highsd5[,1:136],
                           method = "knn", preProcess = c("center","scale"),
@@ -858,6 +1006,17 @@ train_KNNsd5_lat <- train(y = training_highsd5$LATITUDE, x = training_highsd5[,1
 Pred_KNNsd5_lat <- predict(train_KNNsd5_lat, validation_highsd5)
 postResample(Pred_KNNsd5_lat, validation_highsd5$LATITUDE)
 
+validation_sd5_predicted <- validation_highsd5
+validation_sd5_predicted$PredLATITUDE <- Pred_KNNsd5_lat
+validation_sd5_predicted$PredLONGITUDE <- Pred_KNNsd5_long
+
+train_KNNsd5_b0_long <- train(y = building0_highsd5$LONGITUDE, x = building0_highsd5[,1:136],
+                              method = "knn", preProcess = c("center","scale"),
+                              trControl = fitControl)
+Pred_KNNsd5_b0_long <- predict(train_KNNsd5_b0_long, valid_b0_highsd5)
+postResample(Pred_KNNsd5_b0_long, valid_b0_highsd5$LONGITUDE)
+
+
 train_KNNsd5_b1_long <- train(y = building1_highsd5$LONGITUDE, x = building1_highsd5[,1:136],
                               method = "knn", preProcess = c("center","scale"),
                               trControl = fitControl)
@@ -869,6 +1028,12 @@ train_KNNsd5_b2_long <- train(y = building2_highsd5$LONGITUDE, x = building2_hig
                               trControl = fitControl)
 Pred_KNNsd5_b2_long <- predict(train_KNNsd5_b2_long, valid_b2_highsd5)
 postResample(Pred_KNNsd5_b2_long, valid_b2_highsd5$LONGITUDE)
+
+train_KNNsd5_b0_lat <- train(y = building0_highsd5$LATITUDE, x = building0_highsd5[,1:136],
+                             method = "knn", preProcess = c("center","scale"),
+                             trControl = fitControl)
+Pred_KNNsd5_b0_lat <- predict(train_KNNsd5_b0_lat, valid_b0_highsd5)
+postResample(Pred_KNNsd5_b0_lat, valid_b0_highsd5$LATITUDE)
 
 train_KNNsd5_b1_lat <- train(y = building1_highsd5$LATITUDE, x = building1_highsd5[,1:136],
                               method = "knn", preProcess = c("center","scale"),
@@ -884,7 +1049,7 @@ postResample(Pred_KNNsd5_b2_lat, valid_b2_highsd5$LATITUDE)
 
 plot(building2_clean$LONGITUDE, building2_clean$LATITUDE,
      xlab = "Longitude", ylab = "Latitude", main = "Real Values")
-plot(Pred_KNNsd5_b2_long, Pred_KNNsd5_b2_lat,
+plot(Pred_KNNsd5_long, Pred_KNNsd5_lat,
      xlab = "Longitude", ylab = "Latitude", main = "Predicted Values")
 
 
@@ -896,7 +1061,8 @@ plot(Pred_KNNsd5_long, Pred_KNNsd5_lat,
 
 
 
-### LONGITUDE / LATITUDE only with BUILDING datasets
+
+#### LONGITUDE / LATITUDE only with BUILDING datasets ----
 train_KNN_b1_long <- train(y = building1_clean$LONGITUDE, x = building1_clean[,1:143],
                               method = "knn", preProcess = c("center","scale"),
                               trControl = fitControl)
@@ -966,8 +1132,46 @@ postResample(Pred_SVMsd5_lat, validation_highsd5$LATITUDE)
 
 
 
-par(mfrow=c(1,2))
+par(mfrow=c(1,4))
+
+##  ----
 plot(validation_clean$LONGITUDE, validation_clean$LATITUDE,
-     xlab = "Longitude", ylab = "Latitude", main = "Real Values")
+xlab = "Longitude", ylab = "Latitude", main = "Real Values")
 plot(Pred_SVMsd5_long, Pred_SVMsd5_lat,
-     xlab = "Longitude", ylab = "Latitude", main = "Predicted Values")
+     xlab = "Longitude", ylab = "Latitude", main = "Predicted Values") 
+
+
+## ----
+sdfadsf
+
+
+  
+
+
+
+
+ggplot(build2_floor4, aes(LONGITUDE)) +
+  geom_point(aes(y=LATITUDE))
+
+ggplot(val_b2_f4, aes(LONGITUDE)) +
+  geom_point(aes(y=LATITUDE))
+
+
+ggplot(build1_floor2, aes(LONGITUDE)) +
+  geom_point(aes(y=LATITUDE))
+
+ggplot(val_b1_f2, aes(LONGITUDE)) +
+  geom_point(aes(y=LATITUDE))
+
+ggplot(build1_floor1, aes(LONGITUDE)) +
+  geom_point(aes(y=LATITUDE))
+
+ggplot(val_b1_f1, aes(LONGITUDE)) +
+  geom_point(aes(y=LATITUDE))
+
+
+ggplot(validation_highsd5, aes(LONGITUDE)) +
+  geom_point(aes(y=LATITUDE))
+
+ggplot(validation_sd5_predicted, aes(PredLONGITUDE)) +
+  geom_point(aes(y=PredLATITUDE))

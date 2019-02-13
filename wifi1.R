@@ -8,12 +8,12 @@
 
 
 
-#### 0. Environment ----
-#### 0.1 Working directory ----
+#### Environment ----
+#### Working directory ----
 
 setwd("C:/Users/User/Desktop/DataAnalytics/4.2. Wifi Locationing")
 
-#### 0.2. Packages required ----
+#### Packages required ----
 
 install.packages(mvabund)
 library(caret)
@@ -32,23 +32,23 @@ options(scipen=999)       ## to avoid scientific numeration
 var.p = function(x){var(x)*(length(x)-1)/length(x)}
 
 
-#### 1. Data exploration ----
+#### Data exploration ----
 
-#### 1.1. Downloading data ----
+#### Downloading data ----
 
-#### 1.1.1. Downloading training data ----
+#### Downloading training data ----
 training <- read_csv("trainingData.csv")
 training <- as.data.frame(training)
 training[1:529] <- lapply(training[1:529], as.numeric)
 training[523:528] <- lapply(training[523:528], as.factor)
 
-#### 1.1.2. Downloading validation data ----
+#### Downloading validation data ----
 validation <- read_csv("validationData.csv")
 validation <- as.data.frame(validation)
 validation[1:529] <- lapply(validation[1:529], as.numeric)
 validation[523:528] <- lapply(validation[523:528], as.factor)
 
-#### 1.2. Data observation ----
+#### Data observation ----
 
 # Values overview
 head(training)
@@ -77,7 +77,7 @@ validation_clean <- validation
 training_clean[training_clean == "100"] <- -105
 validation_clean[validation_clean == "100"] <- -105
 
-##  Values distribution by features ----
+#### Values distribution by features ----
 summary(training_clean$BUILDINGID)
 summary(training_clean$FLOOR)
 summary(training_clean$USERID)
@@ -117,11 +117,6 @@ plot(validation_clean$LONGITUDE,
      xlab = "LONGITUDE",
      ylab = "LATITUDE")
 
-
-#### 1.2.2. Zero variance / Near zero variance ----
-
-nearZeroVar(training_clean, freqCut = 95/5, uniqueCut = 10, saveMetrics = FALSE,
-            names = TRUE)
 
 #### Data cleaning ----
 
